@@ -11,9 +11,6 @@ jobs:
   fargate:
     runs-on: ubuntu-latest
     environment: Testing
-    env:
-      IMAGE_NAME: ${{ vars.IMAGE_NAME }}
-      TASK_DEFINTION_NAME: ${{ vars.TASK_DEFINTION_NAME }}
     permissions:
       id-token: write
       contents: read
@@ -76,6 +73,9 @@ jobs:
         tags: ${{ vars.IMAGE_NAME }}:latest,${{ vars.IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
 
     - name: Generate Protected Fargate Task
+      env:
+        IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+        TASK_DEFINTION_NAME: ${{ vars.TASK_DEFINTION_NAME }}
       run: |
         # Generate Fargate Task using template
         envsubst < fargate-task-template.json > fargate-task.json
