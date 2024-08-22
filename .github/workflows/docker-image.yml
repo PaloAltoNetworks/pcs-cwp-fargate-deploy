@@ -16,5 +16,5 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         audience: sts.amazonaws.com
-        aws-region: ${{ vars.AWS_REGION }}
+        aws-region: ${{ secrets.AWS_REGION }}
         role-to-assume: ${{ secrets.AWS_ROLE }}
