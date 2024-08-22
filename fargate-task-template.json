@@ -1,11 +1,8 @@
 {
     "containerDefinitions": [ 
        { 
-          "command": [
-             "${COMMAND}"
-          ],
           "essential": true,
-          "image": "${IMAGE}",
+          "image": "${IMAGE_NAME}",
           "name": "sample-fargate-app",
           "portMappings": [ 
              { 
@@ -17,7 +14,7 @@
        }
     ],
     "cpu": "256",
-    "family": "fargate-task-definition",
+    "family": "${TASK_DEFINTION_NAME}",
     "memory": "512",
     "networkMode": "awsvpc",
     "runtimePlatform": {
