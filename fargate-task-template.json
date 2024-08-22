@@ -3,7 +3,7 @@
        { 
           "essential": true,
           "image": "${IMAGE_NAME}",
-          "name": "sample-fargate-app",
+          "name": "${APP_NAME}",
           "portMappings": [ 
              { 
                 "containerPort": 80,
@@ -15,9 +15,11 @@
     ],
     "cpu": "256",
     "family": "${TASK_DEFINTION_NAME}",
+    "executionRoleArn": "${TASK_EXECUTION_ROLE}",
     "memory": "512",
     "networkMode": "awsvpc",
     "runtimePlatform": {
+         "cpuArchitecture": "X86_64",
          "operatingSystemFamily": "LINUX"
      },
     "requiresCompatibilities": [ 
