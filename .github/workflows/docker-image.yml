@@ -104,6 +104,6 @@ jobs:
           }'  | grep -Po '"'"token"'"\s*:\s*"\K([^"]*)')
 
         # Generate Protected Task
-        curl -x POST -H "Content-Type: application/json" -H "Authorization: Bearer $token" --data "@fargate-task.json" "${{ secrets.PCC_URL }}$path" > protected-fargate-task.json
+        curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $token" --data "@fargate-task.json" "${{ secrets.PCC_URL }}$path" > protected-fargate-task.json
         cat protected-fargate-task.json
         
