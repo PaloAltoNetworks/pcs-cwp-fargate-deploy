@@ -39,7 +39,7 @@ jobs:
         docker build -t ${{ secrets.IMAGE_NAME }}:latest .
 
         # Generate Console token
-        token=$(curl -s -k ${{ secrets.PCC_URL }}/api/v1/authenticate -X POST -H "Content-Type: application/json" -d '{
+        token=$(curl -s -k ${{ secrets.PCC_URL }}/api/v1/authenticate -H "Content-Type: application/json" --data '{
           "username":"${{ secrets.PCC_USER }}",
           "password":"${{ secrets.PCC_PASS }}"
           }'  | grep -Po '"'"token"'"\s*:\s*"\K([^"]*)')
@@ -100,13 +100,13 @@ jobs:
         path="$path&extractEntrypoint=$extract_entrypoint"
 
         # Generate Console token
-        token=$(curl -s -k ${{ secrets.PCC_URL }}/api/v1/authenticate -X POST -H "Content-Type: application/json" -d '{
+        token=$(curl -s -k ${{ secrets.PCC_URL }}/api/v1/authenticate -H "Content-Type: application/json" --data '{
           "username":"${{ secrets.PCC_USER }}",
           "password":"${{ secrets.PCC_PASS }}"
           }'  | grep -Po '"'"token"'"\s*:\s*"\K([^"]*)')
 
         # Generate Protected Task
-        curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $token" --data "@fargate-task.json" -o protected-fargate-task.json "${{ secrets.PCC_URL }}$path"
+        curl -H "Content-Type: application/json" -H "Authorization: Bearer $token" --data "@fargate-task.json" -o protected-fargate-task.json "${{ secrets.PCC_URL }}$path"
 
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
