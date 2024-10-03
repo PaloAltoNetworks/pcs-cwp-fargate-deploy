@@ -1,0 +1,308 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Stack for IAM roles for deploying Fargate Defender
+Outputs: 
+  MasterRoleArn:
+    Description: Prisma Cloud Role ARN
+    Value:
+      Fn::GetAtt: [MasterRole, Arn]
+Parameters:
+  MasterRoleName:
+    AllowedPattern: '[-_a-zA-Z0-9]+'
+    Default: FargateDeployMaster
+    Description: Provide an role name for the Master Role. Maximum 64 characters allowed
+    Type: String
+    MaxLength: 64
+    MinLength: 1
+  MemberRoleName:
+    AllowedPattern: '[-_a-zA-Z0-9]+'
+    Default: FargateDeployMember
+    Description: Provide an role name for the Member Roles. Maximum 64 characters allowed
+    Type: String
+    MaxLength: 64
+    MinLength: 1
+  PrismaCloudSecret:
+    Description: Provide the Secret ARN where is stored the Access to Prisma Cloud
+    Type: String
+  FargateDeploy:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: "Set to true if this deployment method of the auto-deployment is as a Fargate task"
+  OrganizationalUnitIds:
+    AllowedPattern: ^(ou-|r-)[a-z0-9-]+(?:,( )*(ou-|r-)[a-z0-9-]+)*$
+    Description: Provide the organizational root OU ID (Prefix like r-) if you want to run it for all the accounts under this Organization. Else provide a comma-separated list of OU ids(Prefix like ou-).
+    Type: CommaDelimitedList
+
+Conditions:
+  SecretExists:
+    Fn::Not:
+      - 
+        Fn::Equals:
+        - 
+          Ref: PrismaCloudSecret
+        - ""
+  IsFargate:
+    Fn::Equals:
+      - 
+        Ref: FargateDeploy
+      - "true"
+
+Resources:
+  FargateDefenderMasterPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: FargateDefenderMasterPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: FargateListAccounts
+          Effect: Allow
+          Action:
+            - "organizations:ListAccounts"
+          Resource: "*"
+        - Sid: FargateAssumeRole
+          Effect: Allow
+          Action:
+            - "sts:AssumeRole"
+          Resource: 
+            Fn::Join:
+              - ""
+              - - "arn:aws:iam::*:role/"
+                - Ref:
+                    MemberRoleName
+        - Fn::If:
+          - SecretExists
+          - 
+            Sid: PrismaCloudSecret
+            Effect: Allow
+            Action:
+              - "secretsmanager:GetSecretValue"
+            Resource:
+              Ref: PrismaCloudSecret
+          - 
+            Ref: AWS::NoValue
+        - Fn::If:
+          - IsFargate
+          - 
+            Sid: TaskExecutionPermissions
+            Effect: Allow
+            Action:
+              - "ecr:GetAuthorizationToken"
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: "*"
+          - 
+            Ref: AWS::NoValue
+
+  FargateDefenderMemberPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: FargateDefenderMemberPolicy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Sid: FargateDefenderMemberPermissions
+          Effect: Allow
+          Action:
+            - "ecs:ListClusters"
+            - "ecs:ListServices"
+            - "ecs:DescribeServices"
+            - "ecs:DescribeTaskDefinition"
+            - "ec2:DescribeRegions"
+            - "ecs:RegisterTaskDefinition"
+            - "ecs:UpdateService"
+          Resource: "*"
+        - Sid: iamPassRolePermission
+          Effect: Allow
+          Action:
+            - "iam:PassRole"
+          Resource: 
+            Fn::Join:
+            - ""
+            - - "arn:aws:iam::"
+              -
+                Ref: AWS::AccountId
+              - ":role/*"     
+
+  MasterRole:
+    Type: AWS::IAM::Role
+    DependsOn:
+    - FargateDefenderMasterPolicy
+    Properties:
+      RoleName: 
+        Ref:
+          MasterRoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal: 
+            Fn::If:
+            - IsFargate
+            - 
+              Service: ecs-tasks.amazonaws.com
+            - 
+              AWS:
+                Fn::Join:
+                - ""
+                - - "arn:aws:iam::"
+                  -
+                    Ref: AWS::AccountId
+                  - ":root"
+          Action:
+            - "sts:AssumeRole"
+      ManagedPolicyArns:
+      - Fn::GetAtt: [FargateDefenderMasterPolicy, PolicyArn]
+
+  MemberRole:
+    Type: AWS::IAM::Role
+    DependsOn:
+    - FargateDefenderMemberPolicy
+    - MasterRole
+    Properties:
+      RoleName: 
+        Ref:
+          MemberRoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS:
+              Fn::GetAtt: [MasterRole, Arn]
+          Action:
+            - "sts:AssumeRole"
+      ManagedPolicyArns:
+      - Fn::GetAtt: [FargateDefenderMemberPolicy, PolicyArn]
+
+  StackSet:
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      AutoDeployment:
+        Enabled: true
+        RetainStacksOnAccountRemoval: false
+      OperationPreferences:
+        FailureTolerancePercentage: 100
+        RegionConcurrencyType: PARALLEL
+      Parameters:
+      - ParameterKey: MemberRoleName
+        ParameterValue: 
+          Ref: MemberRoleName
+      - ParameterKey: MasterRoleArn
+        ParameterValue: 
+          Fn::GetAtt: [MasterRole, Arn]
+      Capabilities:
+        - CAPABILITY_NAMED_IAM
+      PermissionModel: SERVICE_MANAGED
+      StackInstancesGroup:
+      - DeploymentTargets:
+          OrganizationalUnitIds: 
+            Ref: OrganizationalUnitIds
+        Regions:
+          - Ref: AWS::Region
+      StackSetName:
+        Ref: AWS::StackName
+      TemplateBody: |
+        {
+          "AWSTemplateFormatVersion": "2010-09-09",
+          "Description": "Stack for IAM Member roles for Fargate Defender deployment",
+          "Parameters": {
+            "MemberRoleName": {
+              "AllowedPattern": "[-_a-zA-Z0-9]+",
+              "Default": "FargateDeployMember",
+              "Description": "Provide an role name for the Member Roles. Maximum 64 characters allowed",
+              "Type": "String",
+              "MaxLength": 64,
+              "MinLength": 1
+            },
+            "MasterRoleArn": {
+              "Description": "Provide the ARN of the Master Role to be created for Fargate Defender deployment",
+              "Type": "String"
+            }
+          },
+          "Resources": {
+            "FargateDefenderMemberPolicy": {
+              "Type": "AWS::IAM::ManagedPolicy",
+              "Properties": {
+                "ManagedPolicyName": "FargateDefenderMemberPolicy",
+                "PolicyDocument": {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                    {
+                      "Sid": "FargateDefenderMemberPermissions",
+                      "Effect": "Allow",
+                      "Action": [
+                        "ecs:ListClusters",
+                        "ecs:ListServices",
+                        "ecs:DescribeServices",
+                        "ecs:DescribeTaskDefinition",
+                        "ec2:DescribeRegions",
+                        "ecs:RegisterTaskDefinition",
+                        "ecs:UpdateService"
+                      ],
+                      "Resource": "*"
+                    },
+                    {
+                      "Sid": "iamPassRolePermission",
+                      "Effect": "Allow",
+                      "Action": [
+                        "iam:PassRole"
+                      ],
+                      "Resource": {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:aws:iam::",
+                            {"Ref": "AWS::AccountId"},
+                            ":role/*"
+                          ]
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "MemberRole": {
+              "Type": "AWS::IAM::Role",
+              "DependsOn": [
+                "FargateDefenderMemberPolicy"
+              ],
+              "Properties": {
+                "RoleName": {
+                  "Ref": "MemberRoleName"
+                },
+                "AssumeRolePolicyDocument": {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                    {
+                      "Effect": "Allow",
+                      "Principal": {
+                        "AWS": {
+                          "Ref": "MasterRoleArn"
+                        }
+                      },
+                      "Action": [
+                        "sts:AssumeRole"
+                      ]
+                    }
+                  ]
+                },
+                "ManagedPolicyArns": [
+                  {
+                    "Fn::GetAtt": [
+                      "FargateDefenderMemberPolicy",
+                      "PolicyArn"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+        

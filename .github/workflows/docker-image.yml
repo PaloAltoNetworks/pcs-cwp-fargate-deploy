@@ -1,13 +1,10 @@
-name: Fargate Deploy with PCC Defender
+name: Fargate Deploy Single Task with PCC Defender
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
-
   fargate:
     runs-on: ubuntu-latest
     environment: Testing
@@ -106,7 +103,7 @@ jobs:
           }'  | grep -Po '"'"token"'"\s*:\s*"\K([^"]*)')
 
         # Generate Protected Task
-        curl -H "Content-Type: application/json" -H "Authorization: Bearer $token" --data "@fargate-task.json" -o protected-fargate-task.json "${{ secrets.PCC_URL }}$path"
+        curl -s -k -H "Content-Type: application/json" -H "Authorization: Bearer $token" --data "@fargate-task.json" -o protected-fargate-task.json "${{ secrets.PCC_URL }}$path"
 
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
