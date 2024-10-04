@@ -1,28 +1,41 @@
 {
-    "containerDefinitions": [ 
-       { 
-          "essential": true,
-          "image": "${IMAGE_NAME}",
-          "name": "${APP_NAME}",
-          "portMappings": [ 
-             { 
-                "containerPort": 80,
-                "hostPort": 80,
-                "protocol": "tcp"
-             }
-          ]
+   "family": "${TASK_DEFINTION_NAME}",
+   "containerDefinitions": [
+       {
+           "name": "${APP_NAME}",
+           "image": "${IMAGE_NAME}",
+           "cpu": 0,
+           "portMappings": [],
+           "essential": true,
+           "environment": [
+               {
+                   "name": "PCC_SECRET",
+                   "value": "${PCC_SECRET}"
+               }
+           ],
+           "mountPoints": [],
+           "volumesFrom": [],
+           "logConfiguration": {
+               "logDriver": "awslogs",
+               "options": {
+                   "awslogs-group": "/ecs/${APP_NAME}",
+                   "awslogs-region": "us-east-2",
+                   "awslogs-stream-prefix": "ecs"
+               }
+           },
+           "systemControls": []
        }
-    ],
-    "cpu": "256",
-    "family": "${TASK_DEFINTION_NAME}",
-    "executionRoleArn": "${TASK_EXECUTION_ROLE}",
-    "memory": "512",
-    "networkMode": "awsvpc",
-    "runtimePlatform": {
-         "cpuArchitecture": "X86_64",
-         "operatingSystemFamily": "LINUX"
-     },
-    "requiresCompatibilities": [ 
-        "FARGATE" 
-     ]
- }
+   ],
+   "taskRoleArn": "${TASK_EXECUTION_ROLE}",
+   "executionRoleArn": "${TASK_EXECUTION_ROLE}",
+   "networkMode": "awsvpc",
+   "requiresCompatibilities": [
+       "FARGATE"
+   ],
+   "cpu": "256",
+   "memory": "512",
+   "runtimePlatform": {
+       "cpuArchitecture": "X86_64",
+       "operatingSystemFamily": "LINUX"
+   }
+}

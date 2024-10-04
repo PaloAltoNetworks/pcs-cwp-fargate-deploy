@@ -72,6 +72,7 @@ SAMPLE_FILE = os.getenv("SAMPLE_FILE","fargateTask.json")
 ROLE_NAME = os.getenv("ROLE_NAME", "FargateDeployMember")
 REGIONS = os.getenv("REGIONS", "").split(',')
 ACCOUNTS = os.getenv("ACCOUNTS", "").split(',')
+UPGRADE = os.getenv("UPGRADE", "true") in ["True", "true", "1", "yes", "y"]
 
 # Removed attributes from task definition JSON
 TASK_DEFINITION_REMOVED_ATTRIBUTES = [
@@ -410,7 +411,7 @@ def protect_fargate_task_definitions(
                         installed_version = re.findall(VERSION_REGEX, current_defender_image)[0].replace("_", ".")
                         print(f"Service {service_arn} already has the defender installed. Installed version: {installed_version}")
 
-                        if new_version != installed_version:
+                        if new_version != installed_version and UPGRADE:
                             # Update task definition with new defender values
                             print(f"Installed version {installed_version} does not match with the current defender version. Installing version: {new_version}")
                             task_definition['containerDefinitions'][-1]['image'] = new_defender_image
