@@ -538,5 +538,3 @@ if __name__ == "__main__":
                         )
                 except ClientError as e:
                     print(f"Failed in request: {e}")
-    
-    print("Defenders deployment completed")
