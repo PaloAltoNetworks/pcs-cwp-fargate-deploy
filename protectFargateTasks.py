@@ -14,6 +14,7 @@ if os.path.exists(".env"):
     from dotenv import load_dotenv
     load_dotenv()
 
+
 def get_secret(secret_name):
     """Retrieve Secret from AWS Secrets Manager"""
     # Create a Secrets Manager client
@@ -72,6 +73,7 @@ SAMPLE_FILE = os.getenv("SAMPLE_FILE","fargateTask.json")
 ROLE_NAME = os.getenv("ROLE_NAME", "FargateDeployMember")
 REGIONS = os.getenv("REGIONS", "").split(',')
 ACCOUNTS = os.getenv("ACCOUNTS", "").split(',')
+CLUSTERS = os.getenv("CLUSTERS", "").split(',')
 UPGRADE = os.getenv("UPGRADE", "1") in ["1", "True", "true", "yes", "y"]
 
 # Removed attributes from task definition JSON
@@ -472,6 +474,8 @@ if __name__ == "__main__":
         accounts_details = org_client.list_accounts()['Accounts']
         for account_detail in accounts_details:
             accounts.append(account_detail['Id'])
+    
+    print(f"Accounts to cover: {','.join(accounts)}")
 
     for account in accounts:
         print(f"Attempting to assume role in account Id {account}")
@@ -495,6 +499,8 @@ if __name__ == "__main__":
             if not REGIONS[0]:
                 regions_details = ec2_client.describe_regions()
                 regions = [region['RegionName'] for region in regions_details['Regions']]
+            
+            print(f"Regions to cover: {','.join(regions)}")
                  
             for region in regions:
                 try:
@@ -508,9 +514,13 @@ if __name__ == "__main__":
                     # Get list of clusters
                     clusters = get_clusters()
 
-
                     # Loop through each cluster and get services and task definitions
                     for cluster in clusters:
+                        if CLUSTERS[0]:
+                            if not cluster in CLUSTERS:
+                                print(f"Cluster excluded: {cluster}. Reason: Not part of the clusters' list")
+                                continue
+
                         print(f"Accessing cluster: {cluster}")
                         services = get_services(cluster)
                         protect_fargate_task_definitions(
@@ -528,3 +538,5 @@ if __name__ == "__main__":
                         )
                 except ClientError as e:
                     print(f"Failed in request: {e}")
+    
+    print("Defenders deployment completed")
