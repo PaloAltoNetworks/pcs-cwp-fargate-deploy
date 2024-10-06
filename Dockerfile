@@ -27,5 +27,4 @@ COPY protectFargateTasks.py .
 
 USER python
 
-ENTRYPOINT ["python"]
-CMD ["protectFargateTasks.py"]
+ENTRYPOINT ["python", "protectFargateTasks.py"]

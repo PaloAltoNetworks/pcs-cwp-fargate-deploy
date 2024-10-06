@@ -63,7 +63,7 @@ else:
     PCC_PASS = os.getenv("PCC_PASS", "")
 
 PCC_SAN = os.getenv("PCC_SAN", urlparse(PCC_URL).netloc)
-FS_MONITOR = os.getenv("FS_MONITOR", "0") in ["1", "True", "true"]
+FS_MONITOR = os.getenv("FS_MONITOR", "0") in ["1", "True", "true", "yes", "y"]
 FIPS_ENABLED = os.getenv("FIPS_ENABLED", "0") in ["1", "True", "true"]
 REGISTRY_TYPE = os.getenv("REGISTRY_TYPE", "aws")
 CREDENTIAL_ID = os.getenv("CREDENTIAL_ID", "")
@@ -72,7 +72,7 @@ SAMPLE_FILE = os.getenv("SAMPLE_FILE","fargateTask.json")
 ROLE_NAME = os.getenv("ROLE_NAME", "FargateDeployMember")
 REGIONS = os.getenv("REGIONS", "").split(',')
 ACCOUNTS = os.getenv("ACCOUNTS", "").split(',')
-UPGRADE = os.getenv("UPGRADE", "true") in ["True", "true", "1", "yes", "y"]
+UPGRADE = os.getenv("UPGRADE", "1") in ["1", "True", "true", "yes", "y"]
 
 # Removed attributes from task definition JSON
 TASK_DEFINITION_REMOVED_ATTRIBUTES = [
