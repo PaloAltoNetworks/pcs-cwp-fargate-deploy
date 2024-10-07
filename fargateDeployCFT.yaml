@@ -23,6 +23,10 @@ Parameters:
   PrismaCloudSecret:
     Description: Provide the Secret ARN where is stored the Access to Prisma Cloud
     Type: String
+  LogGroupName:
+    Description: Used if it's Fargate deployment. Collects the Logs of the Fargate Updater tasks.
+    Type: String
+    Default: "/ecs/fargate-updater"
   FargateDeploy:
     Type: String
     Default: "true"
@@ -30,8 +34,14 @@ Parameters:
       - "true"
       - "false"
     Description: "Set to true if this deployment method of the auto-deployment is as a Fargate task"
+  DeploymentMode:
+    Type: String
+    Default: "Organization"
+    AllowedValues:
+      - "Organization"
+      - "Single Account"
+    Description: "Choose if the deployment of Fargate Defender will be across the organization or a only this account"
   OrganizationalUnitIds:
-    AllowedPattern: ^(ou-|r-)[a-z0-9-]+(?:,( )*(ou-|r-)[a-z0-9-]+)*$
     Description: Provide the organizational root OU ID (Prefix like r-) if you want to run it for all the accounts under this Organization. Else provide a comma-separated list of OU ids(Prefix like ou-).
     Type: CommaDelimitedList
 
@@ -48,12 +58,25 @@ Conditions:
       - 
         Ref: FargateDeploy
       - "true"
+  IsOrgDeployment:
+    Fn::Equals:
+      - 
+        Ref: DeploymentMode
+      - "Organization"
 
 Resources:
-  FargateDefenderMasterPolicy:
+  FargateUpdaterLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: IsFargate
+    Properties:
+      LogGroupName: 
+        Ref: LogGroupName
+      RetentionInDays: 7
+
+  FargateUpdaterMasterPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: FargateDefenderMasterPolicy
+      ManagedPolicyName: FargateUpdaterMasterPolicy
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -99,14 +122,14 @@ Resources:
           - 
             Ref: AWS::NoValue
 
-  FargateDefenderMemberPolicy:
+  FargateUpdaterMemberPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: FargateDefenderMemberPolicy
+      ManagedPolicyName: FargateUpdaterMemberPolicy
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-        - Sid: FargateDefenderMemberPermissions
+        - Sid: FargateUpdaterMemberPermissions
           Effect: Allow
           Action:
             - "ecs:ListClusters"
@@ -132,7 +155,7 @@ Resources:
   MasterRole:
     Type: AWS::IAM::Role
     DependsOn:
-    - FargateDefenderMasterPolicy
+    - FargateUpdaterMasterPolicy
     Properties:
       RoleName: 
         Ref:
@@ -157,12 +180,12 @@ Resources:
           Action:
             - "sts:AssumeRole"
       ManagedPolicyArns:
-      - Fn::GetAtt: [FargateDefenderMasterPolicy, PolicyArn]
+      - Fn::GetAtt: [FargateUpdaterMasterPolicy, PolicyArn]
 
   MemberRole:
     Type: AWS::IAM::Role
     DependsOn:
-    - FargateDefenderMemberPolicy
+    - FargateUpdaterMemberPolicy
     - MasterRole
     Properties:
       RoleName: 
@@ -178,10 +201,11 @@ Resources:
           Action:
             - "sts:AssumeRole"
       ManagedPolicyArns:
-      - Fn::GetAtt: [FargateDefenderMemberPolicy, PolicyArn]
+      - Fn::GetAtt: [FargateUpdaterMemberPolicy, PolicyArn]
 
-  StackSet:
+  MemberRolesStackSet:
     Type: AWS::CloudFormation::StackSet
+    Condition: IsOrgDeployment
     Properties:
       AutoDeployment:
         Enabled: true
@@ -226,15 +250,15 @@ Resources:
             }
           },
           "Resources": {
-            "FargateDefenderMemberPolicy": {
+            "FargateUpdaterMemberPolicy": {
               "Type": "AWS::IAM::ManagedPolicy",
               "Properties": {
-                "ManagedPolicyName": "FargateDefenderMemberPolicy",
+                "ManagedPolicyName": "FargateUpdaterMemberPolicy",
                 "PolicyDocument": {
                   "Version": "2012-10-17",
                   "Statement": [
                     {
-                      "Sid": "FargateDefenderMemberPermissions",
+                      "Sid": "FargateUpdaterMemberPermissions",
                       "Effect": "Allow",
                       "Action": [
                         "ecs:ListClusters",
@@ -271,7 +295,7 @@ Resources:
             "MemberRole": {
               "Type": "AWS::IAM::Role",
               "DependsOn": [
-                "FargateDefenderMemberPolicy"
+                "FargateUpdaterMemberPolicy"
               ],
               "Properties": {
                 "RoleName": {
@@ -296,7 +320,7 @@ Resources:
                 "ManagedPolicyArns": [
                   {
                     "Fn::GetAtt": [
-                      "FargateDefenderMemberPolicy",
+                      "FargateUpdaterMemberPolicy",
                       "PolicyArn"
                     ]
                   }

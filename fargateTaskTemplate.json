@@ -1,8 +1,8 @@
 {
-   "family": "${TASK_DEFINTION_NAME}",
+   "family": "fargate-updater",
    "containerDefinitions": [
        {
-           "name": "${APP_NAME}",
+           "name": "fargate-updater",
            "image": "${IMAGE_NAME}",
            "cpu": 0,
            "portMappings": [],
@@ -18,8 +18,8 @@
            "logConfiguration": {
                "logDriver": "awslogs",
                "options": {
-                   "awslogs-group": "/ecs/${APP_NAME}",
-                   "awslogs-region": "us-east-2",
+                   "awslogs-group": "/ecs/fargate-updater",
+                   "awslogs-region": "${AWS_REGION}",
                    "awslogs-stream-prefix": "ecs"
                }
            },

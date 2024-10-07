@@ -68,13 +68,17 @@ FS_MONITOR = os.getenv("FS_MONITOR", "0") in ["1", "True", "true", "yes", "y"]
 FIPS_ENABLED = os.getenv("FIPS_ENABLED", "0") in ["1", "True", "true"]
 REGISTRY_TYPE = os.getenv("REGISTRY_TYPE", "aws")
 CREDENTIAL_ID = os.getenv("CREDENTIAL_ID", "")
-VERSION_REGEX = os.getenv("VERSION_REGEX", "[0-9]{2}_[0-9]{2}_[0-9]{3}")
-SAMPLE_FILE = os.getenv("SAMPLE_FILE","fargateTask.json")
 ROLE_NAME = os.getenv("ROLE_NAME", "FargateDeployMember")
 REGIONS = os.getenv("REGIONS", "").split(',')
 ACCOUNTS = os.getenv("ACCOUNTS", "").split(',')
 CLUSTERS = os.getenv("CLUSTERS", "").split(',')
 UPGRADE = os.getenv("UPGRADE", "1") in ["1", "True", "true", "yes", "y"]
+DEPLOYMENT_MODE = os.getenv("DEPLOYMENT_MODE", "ORG") == "ORG"
+WAAS_PORT = os.getenv("WAAS_PORT", "")
+
+# Mandatory values
+SAMPLE_FILE = "fargateTask.json"
+VERSION_REGEX = "[0-9]{2}_[0-9]{2}_[0-9]{3}"
 
 # Removed attributes from task definition JSON
 TASK_DEFINITION_REMOVED_ATTRIBUTES = [
@@ -92,7 +96,9 @@ TASK_DEFINITION_REMOVED_ATTRIBUTES = [
 prisma_cloud_api = urllib3.PoolManager()
 
 # Initialize AWS Organizations and STS clients
-org_client = boto3.client('organizations')
+if DEPLOYMENT_MODE:
+    org_client = boto3.client('organizations')
+
 sts_client = boto3.client('sts')
 
 
@@ -305,9 +311,28 @@ def get_services(cluster_name):
 
 def register_task_definition(task_definition):
     """Register a new ECS task definition"""
-    # Verify if the parameter 'logConfiguration' inside the container definitions is empty. If is, delete it
     try:
         for container_idx in range(len(task_definition['containerDefinitions'])):
+            # Include WAAS port for web apps
+            if WAAS_PORT:
+                if 'portMappings' in task_definition['containerDefinitions'][container_idx]:
+                    include_waas_port = True
+                    for port_map in task_definition['containerDefinitions'][container_idx]['portMappings']:
+                        if port_map['containerPort'] == WAAS_PORT:
+                            print(f"Port {WAAS_PORT} is already configured or in use by the application")
+                            include_waas_port = False
+
+                    if include_waas_port:
+                        task_definition['containerDefinitions'][container_idx]['portMappings'].append(
+                            {
+                                "containerPort": WAAS_PORT,
+                                "hostPort": WAAS_PORT,
+                                "protocol": "tcp"
+                            }
+                        )
+
+
+            # Verify if the parameter 'logConfiguration' inside the container definitions is empty. If is, delete it
             if 'logConfiguration' in task_definition['containerDefinitions'][container_idx]:
                 logConfiguration = task_definition['containerDefinitions'][container_idx]['logConfiguration']
                 if not logConfiguration:
@@ -471,11 +496,16 @@ if __name__ == "__main__":
     accounts = ACCOUNTS
     if not ACCOUNTS[0]:
         accounts = []
-        accounts_details = org_client.list_accounts()['Accounts']
-        for account_detail in accounts_details:
-            accounts.append(account_detail['Id'])
+        if DEPLOYMENT_MODE:
+            accounts_details = org_client.list_accounts()['Accounts']
+            for account_detail in accounts_details:
+                accounts.append(account_detail['Id'])
+        else:
+            accounts = [sts_client.get_caller_identity()["Account"]]
     
     print(f"Accounts to cover: {','.join(accounts)}")
+    if WAAS_PORT:
+        print(f"Configured WAAS with port: {WAAS_PORT}")
 
     for account in accounts:
         print(f"Attempting to assume role in account Id {account}")

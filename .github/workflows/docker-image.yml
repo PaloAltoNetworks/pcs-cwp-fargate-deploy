@@ -73,9 +73,9 @@ jobs:
     # - name: Generate Protected Fargate Task
     #   env:
     #     IMAGE_NAME: ${{ secrets.IMAGE_NAME }}:latest
-    #     TASK_DEFINTION_NAME: ${{ vars.TASK_DEFINTION_NAME }}
     #     TASK_EXECUTION_ROLE: ${{ secrets.TASK_EXECUTION_ROLE }}
-    #     APP_NAME: ${{ vars.APP_NAME }}
+    #     PCC_SECRET: ${{ secrets.PCC_SECRET }}
+    #     AWS_REGION: ${{ secrets.AWS_REGION }}
     #   run: |
     #     # Generate Fargate Task using template
     #     envsubst < fargate-task-template.json > fargate-task.json
