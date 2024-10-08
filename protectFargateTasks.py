@@ -316,20 +316,21 @@ def register_task_definition(task_definition):
             # Include WAAS port for web apps
             if WAAS_PORT:
                 if 'portMappings' in task_definition['containerDefinitions'][container_idx]:
-                    include_waas_port = True
-                    for port_map in task_definition['containerDefinitions'][container_idx]['portMappings']:
-                        if port_map['containerPort'] == WAAS_PORT:
-                            print(f"Port {WAAS_PORT} is already configured or in use by the application")
-                            include_waas_port = False
+                    if task_definition['containerDefinitions'][container_idx]['portMappings']:
+                        include_waas_port = True
+                        for port_map in task_definition['containerDefinitions'][container_idx]['portMappings']:
+                            if port_map['containerPort'] == WAAS_PORT:
+                                print(f"Port {WAAS_PORT} is already configured or in use by the application")
+                                include_waas_port = False
 
-                    if include_waas_port:
-                        task_definition['containerDefinitions'][container_idx]['portMappings'].append(
-                            {
-                                "containerPort": WAAS_PORT,
-                                "hostPort": WAAS_PORT,
-                                "protocol": "tcp"
-                            }
-                        )
+                        if include_waas_port:
+                            task_definition['containerDefinitions'][container_idx]['portMappings'].append(
+                                {
+                                    "containerPort": WAAS_PORT,
+                                    "hostPort": WAAS_PORT,
+                                    "protocol": "tcp"
+                                }
+                            )
 
 
             # Verify if the parameter 'logConfiguration' inside the container definitions is empty. If is, delete it
