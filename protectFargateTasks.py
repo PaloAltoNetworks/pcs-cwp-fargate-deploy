@@ -74,7 +74,7 @@ ACCOUNTS = os.getenv("ACCOUNTS", "").split(',')
 CLUSTERS = os.getenv("CLUSTERS", "").split(',')
 UPGRADE = os.getenv("UPGRADE", "1") in ["1", "True", "true", "yes", "y"]
 DEPLOYMENT_MODE = os.getenv("DEPLOYMENT_MODE", "ORG") == "ORG"
-WAAS_PORT = os.getenv("WAAS_PORT", "")
+WAAS_PORT = int(os.getenv("WAAS_PORT", "0"))
 
 # Mandatory values
 SAMPLE_FILE = "fargateTask.json"
