@@ -109,9 +109,6 @@ def image_entrypoint_cmd(repository: str, registry="registry-1.docker.io", tag="
         tag (str): The image tag (e.g., "latest").
         architecture (str): The desired CPU architecture (e.g., "amd64").
     """
-    # --- Step 1: replace the repository if does not contain / ---
-    if "/" not in repository:
-        repository = f"library/{repository}"
     
     # --- Step 2: Get Authentication Token ---
     print(f"1. Requesting auth token for {repository}...")
@@ -157,7 +154,7 @@ def image_entrypoint_cmd(repository: str, registry="registry-1.docker.io", tag="
     response = http.request("GET", manifest_url, headers=manifest_headers)
     if response.status == 401 and docker_pass and docker_user:
         # Attempt to use DockerHub public registry
-        image_entrypoint_cmd(repository=repository, tag=tag)
+        return image_entrypoint_cmd(repository=repository, tag=tag)
 
     elif response.status != 200:
         print(f"Error: Failed to fetch manifest. Status: {response.status}")
