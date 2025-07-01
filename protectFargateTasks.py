@@ -110,32 +110,40 @@ def image_entrypoint_cmd(repository: str, registry="registry-1.docker.io", tag="
         architecture (str): The desired CPU architecture (e.g., "amd64").
     """
     
-    # --- Step 2: Get Authentication Token ---
-    print(f"1. Requesting auth token for {repository}...")
+    # --- Step 1: Get Authentication ---
+    print(f"1. Requesting auth for registry {registry}...")
     token = ""
-    if docker_user and docker_pass:
-        auth = b64encode(f"{docker_user}:{docker_pass}".encode()).decode()
-        auth_header = {"Authorization": f"Basic {auth}"}
 
-    elif registry == "registry-1.docker.io":
-        # Get Auth Token from Docker Hub
-        auth_url = f"https://auth.docker.io/token?service=registry.docker.io&scope=repository:{repository}:pull"
-        response = http.request("GET", auth_url)
-        if response.status != 200:
-            print(f"Error: Failed to get auth token. Status: {response.status}")
-            return
+    if registry == "registry-1.docker.io":
+        # Get Auth from Private Docker Hub
+        if docker_user and docker_pass:
+            auth = b64encode(f"{docker_user}:{docker_pass}".encode()).decode()
+            auth_header = {"Authorization": f"Basic {auth}"}
+        
+        # Get Auth from Public Docker Hub
+        else:
+            auth_url = f"https://auth.docker.io/token?service=registry.docker.io&scope=repository:{repository}:pull"
+            response = http.request("GET", auth_url)
+            if response.status != 200:
+                print(f"Error: Failed to get auth token. Status: {response.status}")
+                return
 
-        token = json.loads(response.data.decode("utf-8"))["token"]
-        auth_header = {"Authorization": f"Bearer {token}"}
+            token = json.loads(response.data.decode("utf-8"))["token"]
+            auth_header = {"Authorization": f"Bearer {token}"}
 
     elif registry == "public.ecr.aws":
-        # Get Auth Token from Public ECR registry
+        # Get Auth from Public ECR registry
         os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
         ecr_client = boto3.client("ecr-public")
         response = ecr_client.get_authorization_token()
         token = response["authorizationData"]["authorizationToken"]
         auth_header = {"Authorization": f"Bearer {token}"}
     
+    elif docker_user and docker_pass:
+        # Get Auth from Private registry (Any Docker V2 registry - Ex: Jfrog)
+        auth = b64encode(f"{docker_user}:{docker_pass}".encode()).decode()
+        auth_header = {"Authorization": f"Basic {auth}"}
+
     else:
         print(f"{registry} not supported yet to extect entrypoint")
         return
@@ -152,8 +160,8 @@ def image_entrypoint_cmd(repository: str, registry="registry-1.docker.io", tag="
     manifest_url = f"https://{registry}/v2/{repository}/manifests/{tag}"
     
     response = http.request("GET", manifest_url, headers=manifest_headers)
-    if response.status == 401 and docker_pass and docker_user:
-        # Attempt to use DockerHub public registry
+    if response.status == 401 and registry == "registry-1.docker.io" and docker_pass and docker_user:
+        # Attempt to use DockerHub public registry instead of Private
         return image_entrypoint_cmd(repository=repository, tag=tag)
 
     elif response.status != 200:
