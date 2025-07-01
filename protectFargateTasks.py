@@ -353,8 +353,8 @@ def generate_protected_task(
             "docker_pass": DOCKER_PASS,
             **parse_docker_image(image)
         }
-        entrypoint = ""
-        command = ""
+        entrypoint = []
+        command = []
 
         # Remove empty entrypoint
         if "entryPoint" in container_definition:
@@ -372,20 +372,26 @@ def generate_protected_task(
                 command = container_definition["command"]
         
         if not entrypoint:
-            extracted_entrypoint_cmd = image_entrypoint_cmd(**image_details)
-            os.environ["AWS_DEFAULT_REGION"] = region
+            if command:
+                container_definition["entryPoint"] = command
+                del container_definition["command"]
+            
+            else:
+                # Extract ENTRYPOINT and CMD instrucctions from Registry
+                extracted_entrypoint_cmd = image_entrypoint_cmd(**image_details)
+                os.environ["AWS_DEFAULT_REGION"] = region
 
-            if extracted_entrypoint_cmd:
-                if extracted_entrypoint_cmd["entryPoint"]:
-                    container_definition["entryPoint"] = extracted_entrypoint_cmd["entryPoint"]
-                    if not command and extracted_entrypoint_cmd["command"]:
+                # Verify if it was possible to be extracted
+                if extracted_entrypoint_cmd:
+                    if extracted_entrypoint_cmd["entryPoint"]:
+                        container_definition["entryPoint"] = extracted_entrypoint_cmd["entryPoint"]
+                        
+                        if extracted_entrypoint_cmd["command"]:
                             container_definition["command"] = extracted_entrypoint_cmd["command"]
-                            
-                else:
-                    if not command:
-                        container_definition["entryPoint"] = extracted_entrypoint_cmd["command"]
+                                
                     else:
-                        container_definition["entryPoint"] = command
+                        container_definition["entryPoint"] = extracted_entrypoint_cmd["command"]
+
 
         extract_entrypoint = not "entryPoint" in container_definition
 
