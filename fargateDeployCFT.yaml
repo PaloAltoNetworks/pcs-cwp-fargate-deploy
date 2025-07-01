@@ -80,10 +80,12 @@ Resources:
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-        - Sid: FargateListAccounts
+        - Sid: ListAccountsAndPublicECR
           Effect: Allow
           Action:
             - "organizations:ListAccounts"
+            - "ecr-public:GetAuthorizationToken"
+            - "sts:GetServiceBearerToken"
           Resource: "*"
         - Sid: FargateAssumeRole
           Effect: Allow

@@ -24,6 +24,7 @@ RUN rm -f /bin/sh
 
 COPY fargateTask.json .
 COPY protectFargateTasks.py .
+COPY prismaapi.py .
 
 USER python
 
