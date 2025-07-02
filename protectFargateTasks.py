@@ -346,6 +346,8 @@ def generate_protected_task(
     protected_definitions = []
     
     for container_definition in container_definitions:
+        credentialID = registry_credentialID
+        reg_type = registry_type
         task_definition["containerDefinitions"] = [container_definition]
         image = container_definition["image"]
         image_details = {
@@ -398,17 +400,17 @@ def generate_protected_task(
         # Performing Entrypoint extraction if required
         if extract_entrypoint:
             if image_in_registry_scan(image, prismaAPI):
-                registry_type = ""
-                registry_credentialID = ""
+                reg_type = ""
+                credentialID = ""
             
-            else:
-                if not registry_credentialID and image_details["registry"].endswith(".amazonaws.com"):
-                    print(f"Image {image} not found in registries. Extracting from credentials")
-                    registry_credentialID = image_details["registry"].split(".")[0]
+            elif image_details["registry"].endswith(".amazonaws.com"):
+                print(f"Image {image} not found in registries. Extracting from credentials")
+                credentialID = image_details["registry"].split(".")[0]
+                reg_type = "aws"
         
         else:
-            registry_type = ""
-            registry_credentialID = ""
+            reg_type = ""
+            credentialID = ""
 
         params = {
             "consoleaddr": PCC_SAN,
@@ -416,8 +418,8 @@ def generate_protected_task(
             "filesystemMonitoring": filesystem_monitoring,
             "interpreter": interpreter,
             "extractEntrypoint": extract_entrypoint,
-            "registryType": registry_type,
-            "registryCredentialID": registry_credentialID,
+            "registryType": reg_type,
+            "registryCredentialID": credentialID,
             "defenderImage": defender_image,
             "defenderImagePullSecret": defender_image_pullsecret
         }
