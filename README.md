@@ -9,7 +9,7 @@ This repo showcases the process of how to deploy Fargate Defenders on ECS Servic
 > - DockerHub
 > - Public ECR
 > - Private ECR
-> - Private registries with Username and Password acess
+> - Private registries with Username and Password access
 > - Private registries scanned with Prisma Cloud
 
 ## Introduction
